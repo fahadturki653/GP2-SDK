@@ -1,0 +1,9 @@
+UnlitGeneric
+{
+	$basetexture "particle/beam_generic_2.vtf"
+	$additive 1
+	$translucent 1
+	$vertexcolor 1
+	$vertexalpha 1
+	$model 1
+}

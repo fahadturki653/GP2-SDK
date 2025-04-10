@@ -23,7 +23,11 @@ function ENT:SetupDataTables()
 	self:NetworkVar("Vector", "ColorVector01Internal")
 
 	if SERVER then
-		self:SetSize(Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 8))
+		if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+			self:SetSize(Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 8))
+		else
+			self:SetSize(Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 7))
+		end
 		self:SetColorVectorInternal(Vector(255,255,255))
 		self:SetPlacedByMap(true)
 	end
@@ -66,12 +70,20 @@ if SERVER then
 			local value = tonumber(v) > 0 and tonumber(v) or PORTAL_WIDTH / 2
 
 			local size = self:GetSize()
-			self:SetSize(Vector(size.x, value, 8))
+			if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+				self:SetSize(Vector(size.x, value, 8))
+			else
+				self:SetSize(Vector(size.x, value, 7))
+			end
 		elseif k == "HalfHeight" then
 			local value = tonumber(v) > 0 and tonumber(v) or PORTAL_HEIGHT / 2
 
 			local size = self:GetSize()
-			self:SetSize(Vector(value, size.y, 8))
+			if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+				self:SetSize(Vector(value, size.y, 8))
+			else
+				self:SetSize(Vector(value, size.y, 7))
+			end
 		elseif k == "PortalTwo" then
 			self:SetType(tonumber(v))
 		elseif outputs[key] then
@@ -116,13 +128,19 @@ function ENT:Initialize()
 		self:SetCollisionGroup(COLLISION_GROUP_WORLD)
 		self:DrawShadow(false)
 
+		if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+			self:SetPos(self:GetPos() + self:GetAngles():Up() * 7.1)
+		end
+
 		PortalManager.PortalIndex = PortalManager.PortalIndex + 1
 	end
 
 	self:UpdatePhysmesh()
 
-	if SERVER and self:GetPlacedByMap() then
-		self:BuildPortalEnvironment()
+	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+		if SERVER and self:GetPlacedByMap() then
+			self:BuildPortalEnvironment()
+		end
 	end
 	
 	-- Override portal in LinkageGroup
@@ -130,11 +148,13 @@ function ENT:Initialize()
 	PortalManager.Portals[self] = true
 end
 
-function ENT:BuildPortalEnvironment()
-	self.__portalenvironmentphymesh = ents.Create("__portalenvironmentphymesh")
-	self.__portalenvironmentphymesh:SetPos(self:GetPos())
-	self.__portalenvironmentphymesh:SetPortalAngles(self:GetAngles())
-	self.__portalenvironmentphymesh:Spawn()
+if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+	function ENT:BuildPortalEnvironment()
+		self.__portalenvironmentphymesh = ents.Create("__portalenvironmentphymesh")
+		self.__portalenvironmentphymesh:SetPos(self:GetPos())
+		self.__portalenvironmentphymesh:SetPortalAngles(self:GetAngles())
+		self.__portalenvironmentphymesh:Spawn()
+	end
 end
 
 function ENT:OnRemove()
@@ -226,19 +246,36 @@ if CLIENT then
 			self.RENDER_MATRIX = Matrix()
 		end
 
+		debugoverlay.Text(self:GetPos(), self:GetLinkageGroup(), 0.1)
+
 		if halo.RenderedEntity() == self then return end
 		local render = render
 		local cam = cam
 		local size = self:GetSize()
 		local renderMesh = getRenderMesh()
-		if self.RENDER_MATRIX:GetTranslation() ~= self:GetPos() or (self.RENDER_MATRIX:GetScale().x ~= size.x and self.RENDER_MATRIX:GetScale().y ~= size.y) then
-			self.RENDER_MATRIX:Identity()
-			self.RENDER_MATRIX:SetTranslation(self:GetPos())
-			self.RENDER_MATRIX:SetAngles(self:GetAngles())
-			size.z = -0.5
-			self.RENDER_MATRIX:SetScale(size)
-			
-			self:SetRenderBounds(-size, size)
+
+		if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+			if self.RENDER_MATRIX:GetTranslation() ~= self:GetPos() or (self.RENDER_MATRIX:GetScale().x ~= size.x and self.RENDER_MATRIX:GetScale().y ~= size.y) then
+				self.RENDER_MATRIX:Identity()
+				self.RENDER_MATRIX:SetTranslation(self:GetPos() + self:GetAngles():Up() * 8)
+				self.RENDER_MATRIX:SetAngles(self:GetAngles())
+				self.RENDER_MATRIX:SetScale(size * 0.999)
+				size.z = -0.5
+				self:SetRenderBounds(-size, size)
+	
+				size[3] = 0
+			end
+		else
+			if self.RENDER_MATRIX:GetTranslation() ~= self:GetPos() or self.RENDER_MATRIX:GetScale() != size then
+				self.RENDER_MATRIX:Identity()
+				self.RENDER_MATRIX:SetTranslation(self:GetPos())
+				self.RENDER_MATRIX:SetAngles(self:GetAngles())
+				self.RENDER_MATRIX:SetScale(size * 0.999)
+				
+				self:SetRenderBounds(-size, size)
+	
+				size[3] = 0
+			end
 		end
 
 		-- Try to build gradient texture for current color
@@ -366,34 +403,59 @@ if CLIENT then
 end
 
 function ENT:UpdatePhysmesh()
-    self:PhysicsInit(6) -- Initialize physics as a solid
-    if self:GetPhysicsObject():IsValid() then
-		local size = self:GetSize() * 2
-
-		-- Calculate the bounds for the mesh
-		local x0, x1 = -size.x / 2, size.x / 2
-		local y0, y1 = -size.y / 2, size.y / 2
-		local z0, z1 = -size.z, size.z
-
-		-- Define the convex quad mesh
-		local mesh = {
-			Vector(x0, y0, z0),
-			Vector(x0, y0, z1),
-			Vector(x0, y1, z0),
-			Vector(x0, y1, z1),
-			Vector(x1, y0, z0),
-			Vector(x1, y0, z1),
-			Vector(x1, y1, z0),
-			Vector(x1, y1, z1)
-		}
-
-		self:PhysicsInitConvex(mesh)
-		self:EnableCustomCollisions(true)
-		self:GetPhysicsObject():EnableMotion(false)
-		self:GetPhysicsObject():SetContents(MASK_OPAQUE_AND_NPCS)
-    else
-        self:PhysicsDestroy() -- Cleanup on failure
-    end
+	if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+		self:PhysicsInit(6)
+		if self:GetPhysicsObject():IsValid() then
+			local finalMesh = {}
+			local size = self:GetSize()
+			local sides = 8
+			local angleMul = 360 / sides
+			local degreeOffset = (sides * 90 + (sides % 4 ~= 0 and 0 or 45)) * (math.pi / 180)
+			for side = 1, sides do
+				local sidea = math.rad(side * angleMul) + degreeOffset
+				local sidex = math.sin(sidea)
+				local sidey = math.cos(sidea)
+				local side1 = Vector(sidex, sidey, -1)
+				local side2 = Vector(sidex, sidey,  0)
+				table.insert(finalMesh, side1 * size)
+				table.insert(finalMesh, side2 * size)
+			end
+			self:PhysicsInitConvex(finalMesh)
+			self:EnableCustomCollisions(true)
+			self:GetPhysicsObject():EnableMotion(false)
+			self:GetPhysicsObject():SetContents(MASK_OPAQUE_AND_NPCS)
+		else
+			self:PhysicsDestroy()
+			self:EnableCustomCollisions(false)
+			print("Failure to create a portal physics mesh " .. self:EntIndex())
+		end
+	else
+		self:PhysicsInit(6) -- Initialize physics as a solid
+		if self:GetPhysicsObject():IsValid() then
+			local size = self:GetSize() * 2
+	
+			-- Calculate the bounds for the mesh
+			local x0, x1 = -size.x / 2, size.x / 2
+			local y0, y1 = -size.y / 2, size.y / 2
+			local z0, z1 = -size.z, size.z
+	
+			-- Define the convex quad mesh
+			local mesh = {
+				Vector(x0, y0, z0),
+				Vector(x0, y0, z1),
+				Vector(x0, y1, z0),
+				Vector(x0, y1, z1),
+				Vector(x1, y0, z0),
+				Vector(x1, y0, z1),
+				Vector(x1, y1, z0),
+				Vector(x1, y1, z1)
+			}
+	
+			self:PhysicsInitConvex(mesh)
+		else
+			self:PhysicsDestroy() -- Cleanup on failure
+		end
+	end
 end
 
 function ENT:OnPhysgunPickup(ply, ent)
@@ -433,12 +495,25 @@ if CLIENT then
 				self.RingParticle:SetShouldDraw(false)
 			end
 		else
-			self.RingParticle:SetControlPoint(0, self:GetPos())
+			if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+				self.RingParticle:SetControlPoint(0, self:GetPos())
+			else
+				self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
+			end
 
+			-- Messed up axes in Seamless Portals
+			-- right is forward
+			-- forward is right
+			-- up is same
 			local angles = self:GetAngles()
 			local fwd, right, up = angles:Forward(), angles:Right(), angles:Up()
 			self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
-			self.RingParticle:SetControlPoint(7, self:GetColorVector())
+			
+			if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+				self.RingParticle:SetControlPoint(7, self:GetColorVector())
+			else
+				self.RingParticle:SetControlPoint(7, self:GetColorVector() * 0.4)
+			end
 		end
 
 		local phys = self:GetPhysicsObject()

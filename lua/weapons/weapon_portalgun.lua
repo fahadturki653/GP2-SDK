@@ -143,7 +143,7 @@ local cleanserCheck = {
 
 local rayHull = Vector(0.01, 0.01, 0.01)
 
-local function setPortalPlacement(owner, portal)
+local function setPortalPlacementNew(owner, portal)
 	local ang = Angle() -- The portal angle
 	local siz = portal:GetSize()
 	local pos = owner:GetShootPos()
@@ -231,6 +231,99 @@ local function setPortalPlacement(owner, portal)
 	end
 
 	pos = tr.HitPos
+
+	return PORTAL_PLACEMENT_SUCCESFULL, tr, pos, ang
+end
+
+local function setPortalPlacementOld(owner, portal)
+	local ang = Angle() -- The portal angle
+	local siz = portal:GetSize()
+	local pos = owner:GetShootPos()
+	local aim = owner:GetAimVector()
+	local mul = siz[3] * 1.1
+
+	local tr = PortalManager.TraceLine({
+		start  = pos,
+		endpos = pos + aim * 99999,
+		filter = gtCheckFunc,
+		mask   = MASK_SHOT_PORTAL
+	})
+
+	local alongRay = ents.FindAlongRay(tr.StartPos, tr.HitPos, -rayHull, rayHull)
+
+	for i = 1, #alongRay do
+		local ent = alongRay[i]
+
+		-- Check if the entity is in the 'cleanserCheck' table
+		if cleanserCheck[ent:GetClass()] then
+			if not ent:GetEnabled() then continue end
+
+			local rayDirection = pos + aim * 99999
+
+			-- Intersect ray with collision bounds
+			local boundsMin, boundsMax = ent:GetCollisionBounds()
+			local hitPos = util.IntersectRayWithOBB(pos, rayDirection, ent:GetPos(), ent:GetAngles(), boundsMin,
+				boundsMax)
+
+			if hitPos then
+				tr.HitPos = hitPos
+			end
+
+			return PORTAL_PLACEMENT_FIZZLER_HIT, tr
+		end
+	end
+
+	if
+		not gp2_portal_placement_never_fail:GetBool() and
+		(
+			not tr.Hit
+			or IsValid(tr.Entity)
+			or tr.HitTexture == "**studio**"
+			--or bit.band(tr.DispFlags, DISPSURF_WALKABLE) ~= 0
+			or bit.band(tr.SurfaceFlags, SURF_NOPORTAL) ~= 0
+			or bit.band(tr.SurfaceFlags, SURF_TRANS) ~= 0
+		)
+	then
+		return PORTAL_PLACEMENT_BAD_SURFACE, tr
+	end
+
+	if tr.HitSky then
+		return PORTAL_PLACEMENT_UNKNOWN_SURFACE, tr
+	end
+
+	-- Align portals on 45 degree surfaces
+	if math.abs(tr.HitNormal:Dot(ang:Up())) < 0.71 then
+		ang:Set(tr.HitNormal:Angle())
+		ang:RotateAroundAxis(ang:Right(), -90)
+		ang:RotateAroundAxis(ang:Up(), 180)
+	else -- Place portals on any surface and angle
+		ang:Set(getSurfaceAngle(owner, tr.HitNormal))
+	end
+
+	-- Extrude portal from the ground
+	local af, au = ang:Forward(), ang:Right()
+	local angTab = {
+		af * siz[1],
+		-af * siz[1],
+		au * siz[2],
+		-au * siz[2]
+	}
+
+	for i = 1, 4 do
+		local extr = PortalManager.TraceLine({
+			start  = tr.HitPos + tr.HitNormal,
+			endpos = tr.HitPos + tr.HitNormal - angTab[i],
+			filter = ents.GetAll(),
+		})
+
+		if extr.Hit then
+			tr.HitPos = tr.HitPos + angTab[i] * (1 - extr.Fraction)
+		end
+	end
+
+	pos:Set(tr.HitNormal)
+	pos:Mul(mul)
+	pos:Add(tr.HitPos)
 
 	return PORTAL_PLACEMENT_SUCCESFULL, tr, pos, ang
 end
@@ -408,7 +501,13 @@ function SWEP:PlacePortal(type, owner)
 	portal:SetPortalColor(tonumber(r or 255), tonumber(g or 255), tonumber(b or 255))
 	portal:SetType(type or 0)
 	portal:SetLinkageGroup(self:GetLinkageGroup())
-	local placementStatus, traceResult, pos, ang = setPortalPlacement(self:GetOwner(), portal)
+	local placementStatus, traceResult, pos, ang
+
+	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+		placementStatus, traceResult, pos, ang = setPortalPlacementNew(self:GetOwner(), portal) 
+	else 
+		placementStatus, traceResult, pos, ang = setPortalPlacementOld(self:GetOwner(), portal)
+	end
 
 	--local effectData = EffectData()
 	--effectData:SetNormal(Vector(r, g, b)) -- color
@@ -437,7 +536,9 @@ function SWEP:PlacePortal(type, owner)
 	portal:SetPos(pos)
 	portal:SetAngles(ang)
 	portal:SetPlacedByMap(false)
-	portal:BuildPortalEnvironment()
+	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+		portal:BuildPortalEnvironment()
+	end
 
 	--- @type Player
 	local player = owner
@@ -729,17 +830,12 @@ local function CalcViewmodelBob(self)
 	local plr = self:GetOwner():IsPlayer() && self:GetOwner()
 	if !plr then return end
 
-	local speed = plr:GetVelocity():Length2D()
-
-	local maxSpeed = math.max(plr:GetRunSpeed(),plr:GetWalkSpeed())
-
-	speed = math.Clamp(speed,-maxSpeed,maxSpeed)
-
-	local boboffset = math.Remap(speed,0,maxSpeed,0,1)
+	local speed = plr:GetVelocity():Length()
+	speed = math.Clamp(speed,-plr:GetMaxSpeed(), plr:GetMaxSpeed())
+	local boboffset = math.Remap(speed,0, plr:GetMaxSpeed(), 0, 1)
 
 	bobtime = bobtime + (CurTime()-lastbobtime)*boboffset
 	lastbobtime = CurTime()
-
 
     // Vertical Bob
     cycle = bobtime - math.floor(bobtime/HL2_BOB_CYCLE_MAX)*HL2_BOB_CYCLE_MAX

@@ -3,7 +3,7 @@
 -- Start point for whole framework
 -- ----------------------------------------------------------------------------
 
-require("niknaks")
+
 
 local developer = GetConVar("developer")
 
@@ -64,6 +64,18 @@ PORTAL_WIDTH = 64
 --- Default height for portal
 PORTAL_HEIGHT = 112
 
+-- Use unfinished implementation for better portal movement
+-- internally tries to build local copy of world mesh for physics
+-- with hole
+--
+-- currently unfinished
+-- has noticable lag
+PORTAL_USE_NEW_ENVIRONMENT_SYSTEM = false
+
+if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+    require("niknaks")
+end
+
 include("gp2/globals.lua")
 include("gp2/utils.lua")
 include("gp2/netmessages.lua")
@@ -72,7 +84,8 @@ include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
 include("gp2/portalmanager.lua")
 include("gp2/portaldetours.lua")
-include("gp2/portalmovement.lua")
+include("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
+AddCSLuaFile("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
 AddCSLuaFile("gp2/globals.lua")
 AddCSLuaFile("gp2/utils.lua")
 AddCSLuaFile("gp2/netmessages.lua")
@@ -81,7 +94,6 @@ AddCSLuaFile("gp2/particles.lua")
 AddCSLuaFile("gp2/entityextensions.lua")
 AddCSLuaFile("gp2/portalmanager.lua")
 AddCSLuaFile("gp2/portaldetours.lua")
-AddCSLuaFile("gp2/portalmovement.lua")
 AddCSLuaFile("gp2/paint.lua")
 AddCSLuaFile("gp2/client/hud.lua")
 GP2_VERSION = include("gp2/version.lua")

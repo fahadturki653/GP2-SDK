@@ -831,16 +831,12 @@ local function CalcViewmodelBob(self)
 	if !plr then return end
 
 	local speed = plr:GetVelocity():Length2D()
+	speed = math.Clamp(speed,-320,320)
 
-	local maxSpeed = math.max(plr:GetRunSpeed(),plr:GetWalkSpeed())
-
-	speed = math.Clamp(speed,-maxSpeed,maxSpeed)
-
-	local boboffset = math.Remap(speed,0,maxSpeed,0,1)
+	local boboffset = math.Remap(speed,0, plr:GetMaxSpeed(), 0, 1)
 
 	bobtime = bobtime + (CurTime()-lastbobtime)*boboffset
 	lastbobtime = CurTime()
-
 
     // Vertical Bob
     cycle = bobtime - math.floor(bobtime/HL2_BOB_CYCLE_MAX)*HL2_BOB_CYCLE_MAX

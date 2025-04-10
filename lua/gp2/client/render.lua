@@ -360,13 +360,13 @@ hook.Add("PreDrawTranslucentRenderables", "GP2::PreDrawTranslucentRenderables", 
     VguiNeurotoxinCountdown.Render()
     PropPortal.Render()
 
-    if PortalRendering.Rendering then
+    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and PortalRendering.Rendering then
         return true
     end
 end)
 
 hook.Add("PreDrawOpaqueRenderables", "GP2::PreDrawOpaqueRenderables", function(depth, sky, skybox3d)
-    if PortalRendering.Rendering then
+    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and PortalRendering.Rendering then
         return true
     end
 end)

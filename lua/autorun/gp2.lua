@@ -70,7 +70,7 @@ PORTAL_HEIGHT = 112
 --
 -- currently unfinished
 -- has noticable lag
-PORTAL_USE_NEW_ENVIRONMENT_SYSTEM = true
+PORTAL_USE_NEW_ENVIRONMENT_SYSTEM = false
 
 if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
     require("niknaks")

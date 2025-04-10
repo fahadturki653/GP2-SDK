@@ -1,1 +1,1 @@
-return 'GP2 Framework 2024-11-30|03:00 PM'
+return 'GP2-SDK (original by URAKOLOUY5)'

@@ -1,7 +1,7 @@
 > [!WARNING]  
 > This version is the revived Version of GP2-framework the original dev Urak had abandoned the old version of GP2.
 >
-> We are looking for New developers for now
+> Work-in-progress
 
 # About
 

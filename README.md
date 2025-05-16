@@ -20,6 +20,14 @@ That minimum to make Portal 2 maps and mods work in GMod.
 * No edited maps, just mount Portal 2, install addon and play
 * Recompiled models to fix compatibility with Garry's Mod
 
+# Installation
+Download the zip file from github repository
+or Subscribe it from workshop 
+https://steamcommunity.com/sharedfiles/filedetails/?id=3438436943&searchtext=gp2
+
+Once the Zip file was downloaded Open it
+and extract the "GP2-SDK-main" folder to Steam\steamapps\common\GarrysMod\garrysmod\addons
+
 # Code guideline
 At this point, there is no clear codestyle or rules. Feel free to **make changes**, as this is what is needed at the moment. 
 
